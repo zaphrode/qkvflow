@@ -22,7 +22,7 @@ from levanter.models.gpt2 import (
     Gpt2Mlp,
 )
 
-from qkvflow.nn.time_embed import SinusoidalPosEmb, TimeEmbeding
+from qkvflow.nn.time_embed import SinusoidalPosEmb
 
 
 class TemporalLinear(eqx.Module):
@@ -502,7 +502,7 @@ class _NeuralOdeTransformer(eqx.Module):
 class NeuralOdeTransformer(eqx.Module):
 
     config: Gpt2Config = eqx.field(static=True)
-    time_embedding: TimeEmbeding
+    time_embedding: SinusoidalPosEmb
     block: Block
     ln_f: hnn.LayerNorm
 
