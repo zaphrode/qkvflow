@@ -57,6 +57,10 @@ url={https://openreview.net/forum?id=XnDyddPcBT}
 }
 ```
 
+## Acknowledgements
+
+This work was supported by Institute of Information & communications Technology Planning & Evaluation (IITP) grants funded by the Korea government(MSIT) (No. RS-2019-II190079, Artificial Intelligence Graduate School Program(Korea University); No. RS-2019-II190075, Artificial Intelligence Graduate School Program (KAIST); No. RS-2022-II220984, Development of Artificial Intelligence Technology for Personalized Plug-and-Play Explanation and Verification of Explanation; No. RS-2024-00457882, AI Research Hub Project) and the New Faculty Settlement Research Fund by Korea University. This work was supported by the New Faculty Settlement Research Fund by Korea University and Artificial intelligence industrial convergence cluster development project funded by the Ministry of Science and ICT(MSIT, Korea) & Gwangju Metropolitan City. This work is supported by the Google Cloud Research Credits program with the award GCP19980904 in the early stage of the project.
+
 ## License
 [MIT License](LICENSE)
 
