@@ -49,3 +49,7 @@ validation_pid.txt
 !publication_figures/*.tex
 !statistical_validation_results/*.json
 
+
+# Environment variables
+.env
+
