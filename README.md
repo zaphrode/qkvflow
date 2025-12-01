@@ -41,9 +41,9 @@ Constrained parameter sharing might provide **implicit regularization** that imp
 - **Time-Indexed MLP** (our variant, extreme compression)
 - **Time-Indexed SSM** (our variant, best performance)
 
-**Validation:** 5 random seeds with statistical significance testing
+**Validation:** 5 random seeds with statistical significance testing (WikiText-2)
 
-**Scale:** Small models (~1-5M parameters) on a single dataset. Not large-scale validation.
+**Datasets:** WikiText-2 (2M tokens) and WikiText-103 (103M tokens, 50× larger)
 
 ---
 
@@ -61,8 +61,25 @@ Results on **WikiText-2 validation set** (5 seeds, 95% confidence intervals):
 **Notes:**
 - Improvements are statistically significant (p < 0.05) on this specific setup
 - Time-Indexed SSM is actually *slower* per step than standard transformer (64.3 vs 55.3 ms) despite fewer parameters
-- These are preliminary results on a single small dataset
-- Larger-scale validation and broader benchmarks are needed
+
+### WikiText-103 Validation Results
+
+Results on **WikiText-103** (50× larger dataset, ~14.7M characters):
+
+| Model | Valid Loss | Parameters | Training Speed |
+|-------|------------|------------|----------------|
+| **Time-Indexed MLP** | **2.373** | 0.7M | 7.4 ms/step |
+| Tong's Neural ODE | 2.473 | 51.5M | 15.0 ms/step |
+| Standard Transformer | 2.502 | 308.5M | 53.9 ms/step |
+| Time-Indexed SSM | 3.202 | 4.9M | 59.8 ms/step |
+
+**Key findings:**
+- Time-Indexed MLP achieves best performance on larger dataset
+- 5.1% improvement over standard transformer with 430× fewer parameters
+- Time-Indexed SSM performance degrades on larger dataset (requires hyperparameter tuning)
+- Results confirm parameter sharing approach generalizes beyond small datasets
+
+See [WIKITEXT103_RESULTS.md](WIKITEXT103_RESULTS.md) for detailed analysis.
 
 ### Performance Visualization
 
@@ -285,15 +302,17 @@ Key components:
 ## ⚠️ Limitations & Future Work
 
 ### Current Limitations
-1. **Small scale:** Only tested on WikiText-2 with small models (<5M params)
-2. **Single dataset:** No validation on other language modeling benchmarks
-3. **Speed trade-off:** SSM variant is slower per step despite fewer parameters
-4. **No large-scale validation:** Haven't tested with LLaMA-scale models
-5. **Limited baselines:** Only compared against one Neural ODE variant
+1. **Model scale:** Only tested with small models (<5M params)
+2. **Limited benchmarks:** Tested on WikiText-2 and WikiText-103 only
+3. **Speed trade-off:** SSM variant slower per step despite fewer parameters
+4. **SSM generalization:** SSM performance degrades on larger datasets without hyperparameter tuning
+5. **No large-scale validation:** Haven't tested with LLaMA-scale models (100M+ parameters)
+6. **Limited baselines:** Only compared against one Neural ODE variant
 
 ### Future Work Needed
-- [ ] Test on larger datasets (WikiText-103, C4, etc.)
+- [ ] Test on additional benchmarks (C4, The Pile, etc.)
 - [ ] Scale to larger models (100M+ parameters)
+- [ ] Hyperparameter optimization for SSM on large datasets
 - [ ] Compare against more Neural ODE variants
 - [ ] Theoretical analysis of regularization properties
 - [ ] Ablation studies on architectural choices
@@ -341,11 +360,11 @@ See [LICENSE](LICENSE) file for details.
 **For Tong's Neural ODE Transformer (the baseline):**
 ```bibtex
 @inproceedings{tong2025neural,
-  title={Neural {ODE} Transformers: Analyzing Internal Dynamics and Adaptive Fine-tuning},
-  author={Anh Tong and Thanh Nguyen-Tang and Dongeun Lee and Duc Nguyen and Toan Tran and David Leo Wright Hall and Cheongwoong Kang and Jaesik Choi},
-  booktitle={The Thirteenth International Conference on Learning Representations},
-  year={2025},
-  url={https://openreview.net/forum?id=XnDyddPcBT}
+title={Neural {ODE} Transformers: Analyzing Internal Dynamics and Adaptive Fine-tuning},
+author={Anh Tong and Thanh Nguyen-Tang and Dongeun Lee and Duc Nguyen and Toan Tran and David Leo Wright Hall and Cheongwoong Kang and Jaesik Choi},
+booktitle={The Thirteenth International Conference on Learning Representations},
+year={2025},
+url={https://openreview.net/forum?id=XnDyddPcBT}
 }
 ```
 

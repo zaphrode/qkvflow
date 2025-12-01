@@ -53,3 +53,9 @@ validation_pid.txt
 # Environment variables
 .env
 
+
+# WikiText-103 data files
+wikitext103_data/
+*.log
+wiki103*.txt
+wiki103*.pid
