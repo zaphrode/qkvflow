@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+venv311/
+env/
+*.egg-info/
+dist/
+build/
+
+# JAX/ML - Keep only final results
+*.ckpt
+*.safetensors
+
+# Logs (keep only important summaries)
+nohup.out
+statistical_validation.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (too large for GitHub)
+*.zip
+wikitext-2/
+wikitext-103/
+train.txt
+test.txt
+archive.zip
+
+# Temporary
+*.tmp
+*.bak
+validation_pid.txt
+
+# Keep specific result files we want
+!publication_figures/*.png
+!publication_figures/*.pdf
+!publication_figures/*.tex
+!statistical_validation_results/*.json
+

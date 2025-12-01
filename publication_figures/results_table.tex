@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Model Performance Comparison (Mean $\pm$ Std over 5 seeds)}
+\label{tab:main_results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Valid Loss} & \textbf{Parameters} & \textbf{Speed (ms)} & \textbf{Compression} \\
+\midrule
+standard & 2.3672 $\pm$ 0.0221 & 308.5M & 55.3 $\pm$ 1.2 & 1.0× \\
+tong_neuralode & 2.3363 $\pm$ 0.0179 & 51.5M & 15.3 $\pm$ 0.1 & 6.0× \\
+time_indexed_mlp & 2.2306 $\pm$ 0.0247 & 0.7M & 7.7 $\pm$ 0.3 & 430.9× \\
+time_indexed_ssm & 2.1467 $\pm$ 0.1243 & 4.9M & 64.3 $\pm$ 0.5 & 62.9× \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Statistical Significance Tests:
+% standard vs time_indexed_mlp: p=0.000035 (p<0.01), d=5.832
+% standard vs time_indexed_ssm: p=0.008179 (p<0.01), d=2.469
+% tong_neuralode vs time_indexed_mlp: p=0.000121 (p<0.01), d=4.901

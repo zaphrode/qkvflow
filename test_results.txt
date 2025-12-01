@@ -1,0 +1,73 @@
+/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/levanter/models/attention.py:110: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  is_causal: bool = eqx.static_field()
+/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/levanter/models/gpt2.py:125: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  act: Callable = eqx.static_field()
+/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/levanter/models/gpt2.py:148: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  config: Gpt2Config = eqx.static_field()
+/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/levanter/models/gpt2.py:260: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  config: Gpt2Config = eqx.static_field()
+/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/levanter/models/gpt2.py:308: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  Vocab: Axis = eqx.static_field()
+/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/levanter/models/gpt2.py:309: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  config: Gpt2Config = eqx.static_field()
+/home/nahid/Documents/qkvflow/qkvflow/nn/time_embed.py:11: UserWarning: `equinox.static_field` is deprecated in favour of `equinox.field(static=True)`
+  SinusodialDim: hax.Axis = eqx.static_field()
+2025-11-07 01:26:11.271737: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2025-11-07 01:26:11.271805: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2025-11-07 01:26:11.272531: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2025-11-07 01:26:11.272579: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2025-11-07 01:26:11.272670: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+
+======================================================================
+TIME-INDEXED PARAMETER SHARING EXPERIMENT
+======================================================================
+
+This experiment compares:
+1. Standard Transformer (different weights per layer)
+2. Time-Indexed Transformer (shared weights with time modulation)
+
+
+======================================================================
+Experiment: Standard Transformer
+======================================================================
+Total parameters: 313,459,408
+Model parameters: 308,329,408
+
+Training for 500 steps...
+  Step  100 | Loss: 9.3142 | Time: 339.0ms
+  Step  200 | Loss: 9.2195 | Time: 55.2ms
+  Step  300 | Loss: 9.2180 | Time: 54.8ms
+  Step  400 | Loss: 9.2183 | Time: 57.7ms
+  Step  500 | Loss: 9.2169 | Time: 54.8ms
+
+✓ Training complete
+  Final loss: 9.2169
+  Avg step time: 112.3ms
+
+======================================================================
+Experiment: Time-Indexed Transformer
+======================================================================
+Traceback (most recent call last):
+  File "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py", line 695, in <module>
+    main()
+  File "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py", line 652, in main
+    results.append(run_experiment(use_time_indexed=True, config=config, seed=42))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py", line 494, in run_experiment
+    model = TimeIndexedTransformer.init(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py", line 264, in init
+    shared_block = TimeIndexedBlock.init(
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py", line 221, in init
+    mlp = TimeIndexedMLP.init(config, SinusodialDim, key=k_mlp)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py", line 155, in init
+    base_up = hnn.Linear.init(config.Embed, Mlp, key=k_up, use_bias=True)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/haliax/nn/linear.py", line 78, in init
+    joint_spec = hax.concat_axis_specs(Out, In) if out_first else hax.concat_axis_specs(In, Out)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nahid/Documents/qkvflow/venv311/lib/python3.11/site-packages/haliax/axis.py", line 200, in concat_axes
+    raise ValueError(f"Axis {a1} specified twice")
+ValueError: Axis embed(256) specified twice
