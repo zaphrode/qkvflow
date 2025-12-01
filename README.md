@@ -1,95 +1,122 @@
-# Time-Indexed Parameter Sharing for Neural ODE Transformers
+# Neural ODE Transformers - Time-Indexed Parameter Sharing Extension
 
-**A Novel Approach for Efficient Transformers with 9.1% Better Performance and 62-431× Parameter Compression**
-
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![JAX](https://img.shields.io/badge/JAX-0.4.28-orange.svg)](https://github.com/google/jax)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
----
-
-## 🎯 Key Results
-
-| Model | Valid Loss | Parameters | Speed | vs ICLR 2025 |
-|-------|------------|------------|-------|--------------|
-| **Time-Indexed SSM** | **2.147 ± 0.124** | 4.9M | 64.3 ms/step | **9.1% better** ✅ |
-| **Time-Indexed MLP** | **2.231 ± 0.025** | 0.7M | 7.7 ms/step | **4.5% better** ✅ |
-| Tong's Neural ODE (baseline) | 2.336 ± 0.018 | 51.5M | 15.3 ms/step | — |
-| Standard Transformer | 2.367 ± 0.022 | 308.5M | 55.3 ms/step | — |
-
-*Results on WikiText-2, averaged over 5 random seeds with 95% confidence intervals.*
-
-**Statistical Significance:** All improvements are statistically significant (p < 0.05)
+> **⚠️ Important Notice**  
+> This is an **unofficial research extension** of [Tong et al. (ICLR 2025)](https://openreview.net/forum?id=XnDyddPcBT).  
+> Original implementation: [SDML-KU/qkvflow](https://github.com/SDML-KU/qkvflow)
+>
+> **This repository adds:**
+> - Time-indexed parameter-sharing variants (MLP and SSM)
+> - Small-scale WikiText-2 comparison experiments
+> - Statistical validation tools and analysis scripts
+> - Exploratory follow-up work for my own research
+>
+> **This is NOT the official repo for Tong's ICLR 2025 paper.**
 
 ---
 
-## 🚀 What's New?
+## 📖 About This Fork
 
-**Core Insight:** Constrained parameter sharing with time-indexed modulation outperforms unrestricted time-dependent weight generation.
+This repository extends the Neural ODE Transformer work by Tong et al. (ICLR 2025) with **constrained parameter sharing** experiments.
 
-Instead of generating entire weight matrices at each layer:
-```python
-W(t) = HyperNetwork(time_embed(t))  # Tong's approach (51M params)
-```
+### Research Question
 
-We use **shared base weights** with **lightweight time modulation**:
-```python
-W(t) = W_base ⊙ σ(MLP_small(time_embed(t)))  # Ours (0.7-4.9M params)
-```
+Can we improve Neural ODE Transformers by:
+1. **Sharing base weights** across layers
+2. **Modulating** them with lightweight time-dependent scaling
 
-**Benefits:**
-- ✅ **Implicit regularization** through shared structure
-- ✅ **Easier optimization** (smaller search space)
-- ✅ **Better generalization** (validated with error bars)
-- ✅ **Practical efficiency** (430× compression, 7.2× speedup)
+instead of generating all weights independently from scratch at each layer?
+
+### Hypothesis
+
+Constrained parameter sharing might provide **implicit regularization** that improves generalization on small-scale tasks.
 
 ---
 
-## 📊 Results & Figures
+## 🔬 Experimental Setup
 
-### Performance Comparison
+**Dataset:** WikiText-2 (small-scale language modeling)  
+**Models compared:**
+- Standard Transformer (baseline)
+- Tong's Neural ODE Transformer (ICLR 2025 baseline)
+- **Time-Indexed MLP** (our variant, extreme compression)
+- **Time-Indexed SSM** (our variant, best performance)
+
+**Validation:** 5 random seeds with statistical significance testing
+
+**Scale:** Small models (~1-5M parameters) on a single dataset. Not large-scale validation.
+
+---
+
+## 📊 Preliminary Results
+
+Results on **WikiText-2 validation set** (5 seeds, 95% confidence intervals):
+
+| Model | Valid Loss | Parameters | Training Speed |
+|-------|------------|------------|----------------|
+| **Time-Indexed SSM** | **2.147 ± 0.124** | 4.9M | 64.3 ms/step |
+| **Time-Indexed MLP** | **2.231 ± 0.025** | 0.7M | 7.7 ms/step |
+| Tong's Neural ODE | 2.336 ± 0.018 | 51.5M | 15.3 ms/step |
+| Standard Transformer | 2.367 ± 0.022 | 308.5M | 55.3 ms/step |
+
+**Notes:**
+- Improvements are statistically significant (p < 0.05) on this specific setup
+- Time-Indexed SSM is actually *slower* per step than standard transformer (64.3 vs 55.3 ms) despite fewer parameters
+- These are preliminary results on a single small dataset
+- Larger-scale validation and broader benchmarks are needed
+
+### Performance Visualization
+
 ![Statistical Performance](publication_figures/statistical_performance.png)
+*Loss comparison with error bars (5 seeds)*
 
-### Parameter Efficiency
 ![Efficiency](publication_figures/efficiency_with_error.png)
-
-### Speed Comparison
-![Speed](publication_figures/speed_comparison.png)
-
-### Statistical Significance
-![Significance Tests](publication_figures/significance_tests.png)
-
-*All figures include error bars from 5 random seeds.*
+*Parameter efficiency vs performance*
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Details
 
-### Standard Transformer (Baseline)
-- Separate weight matrices for each layer
-- 308M parameters for 6 layers
+### Core Idea: Constrained Parameter Sharing
 
-### Tong's Neural ODE (ICLR 2025)
-- Hypernetwork generates all weights from time embedding
-- 51M parameters (independent of depth)
+**Tong's approach (unrestricted generation):**
+```python
+# Generate all weights from scratch at each layer
+W_Q(t), W_K(t), W_V(t) = HyperNetwork(sinusoidal_embed(t))
+# ~51M parameters
+```
 
-### Ours: Time-Indexed Parameter Sharing
-- **Shared base weights** across all layers
-- **Lightweight modulation** network (64 hidden units)
-- **Two variants:**
-  - **MLP**: 0.7M parameters (430× compression)
-  - **SSM**: 4.9M parameters (62× compression)
+**Our approach (constrained sharing):**
+```python
+# Share base weights, modulate with lightweight network
+scale_Q(t), scale_K(t), scale_V(t) = SmallMLP(sinusoidal_embed(t))
+W_Q_eff(t) = W_Q_base ⊙ sigmoid(scale_Q(t))
+W_K_eff(t) = W_K_base ⊙ sigmoid(scale_K(t))
+W_V_eff(t) = W_V_base ⊙ sigmoid(scale_V(t))
+# ~0.7-4.9M parameters (depending on variant)
+```
+
+**Why this might help:**
+- Constrains the weight space to a low-dimensional manifold
+- Provides implicit regularization through sharing
+- Reduces risk of overfitting on small datasets
+
+**Trade-offs:**
+- Less expressive than full weight generation
+- May not scale to very deep networks
+- Needs validation on larger datasets/models
 
 ---
 
-## 📦 Installation
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
-# Clone the repository
+# Clone this repository
 git clone https://github.com/zaphrode/qkvflow.git
 cd qkvflow
 
-# Create virtual environment
+# Create virtual environment (Python 3.11+)
 python3.11 -m venv venv311
 source venv311/bin/activate
 
@@ -100,220 +127,231 @@ pip install -r requirements.txt
 pip install --upgrade "jax[cuda12]"
 ```
 
----
+### Simple Python Example (No Notebooks)
 
-## 🚀 Quick Start
-
-### Run Statistical Validation (5 Seeds)
 ```bash
-python scripts/run_5_seed_validation.py
+# Run the example script to see the models in action
+python example_usage.py
 ```
 
-### Compare All Models
+This demonstrates:
+- Model initialization
+- Forward pass
+- Loss computation
+- Single training step
+
+**See [`example_usage.py`](example_usage.py) for complete working code.**
+
+### Run Experiments
+
 ```bash
+# Compare all models (single seed, quick test)
 python scripts/compare_vs_tong_neuralode.py
-```
 
-### Generate Publication Figures
-```bash
-python scripts/plot_statistical_results.py
-```
-
----
-
-## 📈 Reproduce Our Results
-
-### 1. Statistical Validation
-```bash
-# Run all models with 5 different seeds
+# Full statistical validation (5 seeds, ~2-3 hours on A100)
 python scripts/run_5_seed_validation.py
 
-# Output: statistical_validation_results/
-# - statistics_summary.json
-# - significance_tests.json
-# - seed_*.pkl (individual results)
-```
-
-### 2. Generate Figures
-```bash
-# Create publication-quality plots with error bars
+# Generate plots with error bars
 python scripts/plot_statistical_results.py
-
-# Output: publication_figures/
-# - statistical_performance.png/pdf
-# - efficiency_with_error.png/pdf
-# - speed_comparison.png/pdf
-# - significance_tests.png/pdf
-# - results_table.tex (LaTeX table)
 ```
 
 ---
 
-## 🔬 Key Contributions
+## 📁 Repository Structure
 
-1. **Novel Architecture**: Time-indexed parameter sharing with constrained modulation
-2. **Strong Empirical Results**: 9.1% better than ICLR 2025 with 62× fewer parameters
-3. **Theoretical Insight**: Why constrained sharing beats unrestricted generation
-4. **Statistical Validation**: All results with error bars (5 seeds)
-5. **Two Variants**: MLP (extreme compression) and SSM (best performance)
+### Core Python Code (Not Notebooks)
 
----
+**Models** (pure Python modules):
+- `qkvflow/models/neuralode_lm.py` - Time-Indexed MLP implementation (~400 lines)
+- `qkvflow/models/neuralode_ssm_lm.py` - Time-Indexed SSM implementation (~450 lines)
 
-## 📊 Detailed Results
+**Neural Network Modules**:
+- `qkvflow/nn/dynamic.py` - Time-indexed layers
+- `qkvflow/nn/attention.py` - Attention mechanisms
+- `qkvflow/nn/` - Additional building blocks
 
-### Performance (Validation Loss)
+**Configuration**:
+- `qkvflow/config/neuralode_ssm_config.py` - Model configuration classes
 
-| Model | Mean | Std | 95% CI | p-value vs Tong |
-|-------|------|-----|--------|-----------------|
-| Time-Indexed SSM | 2.147 | 0.124 | [1.974, 2.319] | **0.017** |
-| Time-Indexed MLP | 2.231 | 0.025 | [2.196, 2.265] | **0.0001** |
-| Tong's Neural ODE | 2.336 | 0.018 | [2.311, 2.361] | — |
-| Standard | 2.367 | 0.022 | [2.337, 2.398] | 0.062 |
+**Scripts** (reproducible experiments):
+- `scripts/compare_vs_tong_neuralode.py` - Main comparison script
+- `scripts/run_5_seed_validation.py` - Statistical validation (5 seeds)
+- `scripts/plot_statistical_results.py` - Figure generation
 
-### Parameter Efficiency
+**Examples**:
+- `example_usage.py` - Simple Python examples (no notebooks required)
 
-| Model | Parameters | Compression | Params/Loss |
-|-------|------------|-------------|-------------|
-| Time-Indexed MLP | **0.7M** | **430.9×** | **0.32M** |
-| Time-Indexed SSM | **4.9M** | **62.9×** | **2.38M** |
-| Tong's Neural ODE | 51.5M | 6.0× | 22.3M |
-| Standard | 308.5M | 1.0× | 130.4M |
+**Notebooks** (exploratory only):
+- `notebooks/` - Jupyter notebooks for analysis and visualization
 
-### Speed (Training Time per Step)
-
-| Model | Mean (ms) | Std | Speedup |
-|-------|-----------|-----|---------|
-| **Time-Indexed MLP** | **7.7** | 0.3 | **7.2×** |
-| Tong's Neural ODE | 15.3 | 0.1 | 3.6× |
-| Standard | 55.3 | 1.2 | 1.0× |
-| Time-Indexed SSM | 64.3 | 0.5 | 0.9× |
-
----
-
-## 🧮 Mathematical Formulation
-
-### Standard Transformer
-```
-x_{i+1} = x_i + Attention(x_i; W^Q_i, W^K_i, W^V_i) + FFN(x_i; W^{up}_i, W^{down}_i)
-```
-**Parameters:** O(L · d²) where L is depth
-
-### Tong's Neural ODE
-```
-W(t) = g_θ(SinusoidalEmbed(t))
-x_{i+1} = x_i + f(x_i, t_i; W(t_i)) · Δt
-```
-**Parameters:** O(d² · h) (independent of L)
-
-### Ours: Time-Indexed Sharing
-```
-W_eff(t) = W_base ⊙ σ(MLP_φ(SinusoidalEmbed(t)))
-x_{i+1} = x_i + f(x_i, t_i; W_eff(t_i))
-```
-**Parameters:** O(d² + d · h_mod) where h_mod ≪ d
-
-**Key Difference:** We constrain to a low-dimensional manifold through shared base weights.
-
----
-
-## 📚 Citation
-
-```bibtex
-@article{qkvflow2025,
-  title={Time-Indexed Parameter Sharing for Neural ODE Transformers},
-  author={[Your Name]},
-  year={2025},
-  note={In preparation}
-}
-```
-
----
-
-## 🗂️ Project Structure
+### Full Structure
 
 ```
 qkvflow/
-├── config/                      # Model configurations
-│   ├── neuralode_config.py
-│   └── neuralode_ssm_config.py
-├── qkvflow/                     # Core implementation
+├── qkvflow/                        # Core library (Python modules)
 │   ├── models/
-│   │   ├── neuralode_lm.py     # MLP variant
-│   │   └── neuralode_ssm_lm.py # SSM variant
-│   └── nn/                      # Neural network modules
-├── scripts/                     # Experiment scripts
-│   ├── run_5_seed_validation.py
-│   ├── compare_vs_tong_neuralode.py
-│   └── plot_statistical_results.py
-├── publication_figures/         # Publication-ready plots
-├── statistical_validation_results/ # Statistical data
-├── RESEARCH_SUMMARY.md         # Full paper draft
-├── PUBLICATION_ROADMAP.md      # Publication guide
+│   │   ├── neuralode_lm.py         # Time-Indexed MLP
+│   │   └── neuralode_ssm_lm.py     # Time-Indexed SSM
+│   ├── nn/                          # Neural network building blocks
+│   └── config/                      # Configuration classes
+├── scripts/                         # Experiment scripts
+├── example_usage.py                 # Simple Python examples
+├── publication_figures/             # Generated plots
+├── statistical_validation_results/  # Statistical data
+├── API.md                           # API documentation
+├── CONTRIBUTING.md                  # Contribution guidelines
+├── RESEARCH_SUMMARY.md              # Full research writeup
 └── requirements.txt
+```
+
+**Note:** While GitHub shows "99% Jupyter Notebook" in language stats, the **core implementation is pure Python**. Notebooks are used only for exploratory analysis.
+
+---
+
+## 📈 Reproducing Results
+
+### 1. Quick Test (Single Seed)
+```bash
+python scripts/compare_vs_tong_neuralode.py
+# Output: Prints loss comparison to console
+```
+
+### 2. Statistical Validation (5 Seeds)
+```bash
+python scripts/run_5_seed_validation.py
+# Output: statistical_validation_results/
+#   - statistics_summary.json (means, stds, CIs)
+#   - significance_tests.json (p-values, t-tests)
+#   - seed_*.pkl (individual run data)
+```
+
+### 3. Generate Figures
+```bash
+python scripts/plot_statistical_results.py
+# Output: publication_figures/
+#   - statistical_performance.png/pdf
+#   - efficiency_with_error.png/pdf
+#   - speed_comparison.png/pdf
+#   - results_table.tex (LaTeX table)
 ```
 
 ---
 
-## 🎓 For Researchers
+## 🔧 Core Implementation
 
-### Paper Draft
-See `RESEARCH_SUMMARY.md` for the full paper with:
-- Abstract and introduction
-- Mathematical formulation
-- Detailed experimental setup
-- Results and analysis
-- Discussion and related work
+### Time-Indexed MLP Block
 
-### LaTeX Table
-Ready-to-use LaTeX table in `publication_figures/results_table.tex`
+Implementation: [`qkvflow/models/neuralode_lm.py`](qkvflow/models/neuralode_lm.py)
 
-### Statistical Data
-All raw data in `statistical_validation_results/`
+Key components:
+- Shared base weight matrices (attention & MLP)
+- Lightweight time-modulation network (64 hidden units)
+- Sinusoidal time embeddings
+- Element-wise sigmoid gating
 
----
+### Time-Indexed SSM Block
 
-## 🔧 Requirements
+Implementation: [`qkvflow/models/neuralode_ssm_lm.py`](qkvflow/models/neuralode_ssm_lm.py)
 
-- Python 3.11+
-- JAX 0.4.28+ (with CUDA support for GPU)
-- Equinox 0.11.4+
-- Haliax 1.3+
-- NumPy, SciPy, Matplotlib, Seaborn
-
-See `requirements.txt` for complete list.
+Key components:
+- Mamba-style selective state space model
+- Time-indexed parameter sharing for SSM matrices
+- Combines SSM efficiency with parameter sharing
 
 ---
 
-## 🙏 Acknowledgments
+## 📚 Documentation
 
-This work builds upon:
-- **Tong et al. (ICLR 2025)**: Neural ODE Transformers
-- **Gu & Dao (2023)**: Mamba (Selective State Space Models)
-- **Chen et al. (2018)**: Neural Ordinary Differential Equations
+### For Users
+
+- **[API.md](API.md)** - Complete Python API documentation
+- **[example_usage.py](example_usage.py)** - Working code examples (no notebooks)
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute
+
+### For Researchers
+
+- **[RESEARCH_SUMMARY.md](RESEARCH_SUMMARY.md)** - Detailed writeup including:
+  - Mathematical formulation
+  - Experimental methodology
+  - Full results and analysis
+  - Discussion of limitations
+
+- **[PUBLICATION_ROADMAP.md](PUBLICATION_ROADMAP.md)** - Steps toward paper submission:
+  - Additional experiments needed
+  - Timeline and milestones
+
+---
+
+## ⚠️ Limitations & Future Work
+
+### Current Limitations
+1. **Small scale:** Only tested on WikiText-2 with small models (<5M params)
+2. **Single dataset:** No validation on other language modeling benchmarks
+3. **Speed trade-off:** SSM variant is slower per step despite fewer parameters
+4. **No large-scale validation:** Haven't tested with LLaMA-scale models
+5. **Limited baselines:** Only compared against one Neural ODE variant
+
+### Future Work Needed
+- [ ] Test on larger datasets (WikiText-103, C4, etc.)
+- [ ] Scale to larger models (100M+ parameters)
+- [ ] Compare against more Neural ODE variants
+- [ ] Theoretical analysis of regularization properties
+- [ ] Ablation studies on architectural choices
+- [ ] Speed optimization for SSM variant
+
+---
+
+## 🙏 Acknowledgments & Attribution
+
+This work builds directly on:
+
+**Primary:**
+- **Tong et al. (ICLR 2025)**: [Neural ODE Transformers: Analyzing Internal Dynamics and Adaptive Fine-tuning](https://openreview.net/forum?id=XnDyddPcBT)
+  - Original Neural ODE Transformer architecture
+  - Base codebase and implementation ([SDML-KU/qkvflow](https://github.com/SDML-KU/qkvflow))
+
+**Additional:**
+- **Gu & Dao (2023)**: [Mamba: Linear-Time Sequence Modeling with Selective State Spaces](https://arxiv.org/abs/2312.00752)
+- **Chen et al. (2018)**: [Neural Ordinary Differential Equations](https://arxiv.org/abs/1806.07366)
 
 ---
 
 ## 📄 License
 
-MIT License - See LICENSE file for details
+MIT License (same as original SDML-KU/qkvflow)
+
+See [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🐛 Issues & Contributions
+## 📧 Contact & Contributing
 
-Found a bug or want to contribute? Please open an issue or pull request!
+**Status:** Work in progress, personal research exploration
+
+- **Issues:** Feel free to open issues for bugs or questions
+- **Pull Requests:** Happy to discuss, but this is exploratory work
+- **Research discussions:** Open an issue or contact me directly
+
+**Not yet ready for citation** - preliminary results only, no preprint/paper yet.
 
 ---
 
-## 📧 Contact
+## 📊 Citation
 
-For questions about the research, please open an issue or contact: [your-email]
+**For Tong's Neural ODE Transformer (the baseline):**
+```bibtex
+@inproceedings{tong2025neural,
+  title={Neural {ODE} Transformers: Analyzing Internal Dynamics and Adaptive Fine-tuning},
+  author={Anh Tong and Thanh Nguyen-Tang and Dongeun Lee and Duc Nguyen and Toan Tran and David Leo Wright Hall and Cheongwoong Kang and Jaesik Choi},
+  booktitle={The Thirteenth International Conference on Learning Representations},
+  year={2025},
+  url={https://openreview.net/forum?id=XnDyddPcBT}
+}
+```
 
----
-
-## ⭐ Star this repository if you find it useful!
-
-**Publication Status:** Manuscript in preparation for NeurIPS/ICML 2026
+**For this extension work:**
+- No citation available yet (work in progress)
+- Will update when/if results are published
 
 ---
 
