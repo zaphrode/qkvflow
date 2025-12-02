@@ -13,10 +13,13 @@ nbconvert==7.2.10
 nbformat==5.8.0
 
 ## main package
-# einops==0.6.1
-# scipy==1.12.0
-# # wandb
+jax[cpu]==0.4.20
+equinox==0.11.3
+haliax==1.3.0
+levanter==1.1
+optax==0.1.7
+matplotlib
+einops==0.6.1
+scipy==1.12.0
+# wandb
 # zstandard
-# # optax
-# matplotlib
-# levanter==1.1
