@@ -182,21 +182,23 @@ class ConstantModulationMLP(eqx.Module):
 class ConstantModulationBlock(eqx.Module):
     """Transformer block with constant modulation."""
     
-    ln1: TemporalLayerNorm
+    ln1: hnn.LayerNorm
     attn: ConstantModulationAttention
-    ln2: TemporalLayerNorm
+    ln2: hnn.LayerNorm
     mlp: ConstantModulationMLP
+    config: Gpt2Config = eqx.field(static=True)
     
     @staticmethod
     def init(config, *, key):
         k_attn, k_mlp = jrandom.split(key, 2)
         
-        ln1 = TemporalLayerNorm.init(config.Embed)
+        # Simple layer norm (no time dependency)
+        ln1 = hnn.LayerNorm.init(config.Embed)
         attn = ConstantModulationAttention.init(config, key=k_attn)
-        ln2 = TemporalLayerNorm.init(config.Embed)
+        ln2 = hnn.LayerNorm.init(config.Embed)
         mlp = ConstantModulationMLP.init(config, key=k_mlp)
         
-        return ConstantModulationBlock(ln1, attn, ln2, mlp)
+        return ConstantModulationBlock(ln1, attn, ln2, mlp, config)
     
     @named_call
     def __call__(self, x, mask, *, key):
@@ -218,60 +220,28 @@ class ConstantModulationBlock(eqx.Module):
 class ConstantModulationTransformer(eqx.Module):
     """Full transformer with constant modulation (ablation baseline)."""
     
-    embed: hnn.Embedding
     blocks: list
-    ln_f: TemporalLayerNorm
-    lm_head: hnn.Linear
     config: Gpt2Config = eqx.field(static=True)
     
     @staticmethod
-    def init(Vocab, Embed, Heads, HeadSize, Layers, *, key):
-        k_embed, k_blocks, k_head = jrandom.split(key, 3)
-        
-        config = Gpt2Config(
-            num_layers=Layers,
-            hidden_dim=Embed.size,
-            num_heads=Heads.size,
-            seq_len=128,
-            gradient_checkpointing=False,
-            use_bias=False,
-        )
-        config.Heads = Heads
-        config.HeadSize = HeadSize
-        config.Embed = Embed
-        config.Vocab = Vocab
-        config.Pos = hax.Axis("position", 128)
-        config.Mlp = hax.Axis("mlp", 4 * Embed.size)
-        
-        embed = hnn.Embedding.init(Vocab, Embed, key=k_embed)
+    def init(config, *, key):
+        k_blocks = key
         
         # Create blocks with constant modulation
-        block_keys = jrandom.split(k_blocks, Layers)
+        block_keys = jrandom.split(k_blocks, config.num_layers)
         blocks = [ConstantModulationBlock.init(config, key=k) for k in block_keys]
         
-        ln_f = TemporalLayerNorm.init(Embed)
-        lm_head = hnn.Linear.init(Embed, Vocab, key=k_head, use_bias=False)
-        
-        return ConstantModulationTransformer(embed, blocks, ln_f, lm_head, config)
+        return ConstantModulationTransformer(blocks, config)
     
     @named_call
-    def __call__(self, input_ids, Batch, Pos, *, key):
+    def __call__(self, x, attn_mask, *, key):
         keys = maybe_rng_split(key, len(self.blocks))
-        
-        # Embed tokens
-        x = self.embed(input_ids)
-        
-        # Create causal mask
-        mask_val = hax.arange(Pos) <= hax.arange(Pos).broadcast_axis(Pos.alias("key_position"))
         
         # Apply blocks (NO time-indexing - same modulation for all layers)
         for block, k in zip(self.blocks, keys):
-            x = block(x, mask_val, key=k)
+            x = block(x, attn_mask, key=k)
         
-        x = self.ln_f(x)
-        logits = self.lm_head(x)
-        
-        return logits.array
+        return x
 
 
 def run_ablation_experiment(config: ExperimentConfig, seed: int = 42):
@@ -302,45 +272,63 @@ def run_ablation_experiment(config: ExperimentConfig, seed: int = 42):
     
     # Initialize models
     print("\n📦 Initializing models...")
-    k1, k2, k3, key = jrandom.split(key, 4)
+    k1, k2, k3, k_emb1, k_emb2, k_emb3, k_head1, k_head2, k_head3, key = jrandom.split(key, 10)
     
-    # Create GPT2 config for models
-    gpt2_config = Gpt2Config(
-        num_layers=config.num_layers,
-        hidden_dim=config.hidden_dim,
-        num_heads=config.num_heads,
-        seq_len=config.seq_len,
-        gradient_checkpointing=False,
-        use_bias=False,
-    )
-    gpt2_config.Heads = Heads
-    gpt2_config.HeadSize = HeadSize
-    gpt2_config.Embed = Embed
-    gpt2_config.Vocab = Vocab
-    gpt2_config.Pos = Pos
-    gpt2_config.Mlp = hax.Axis("mlp", 4 * config.hidden_dim)
+    # Create GPT2 config for models that need it
+    gpt2_config_dict = {
+        'num_layers': config.num_layers,
+        'hidden_dim': config.hidden_dim,
+        'num_heads': config.num_heads,
+        'seq_len': config.seq_len,
+        'gradient_checkpointing': False,
+        'use_bias': False,
+    }
+    gpt2_config = Gpt2Config(**gpt2_config_dict)
     
-    time_indexed_model = TimeIndexedTransformer.init(
+    # For Constant Modulation, we'll create a custom config object with the axes
+    class ConstantConfig:
+        def __init__(self):
+            self.num_layers = config.num_layers
+            self.Heads = Heads
+            self.HeadSize = HeadSize
+            self.Embed = Embed
+            self.Vocab = Vocab
+            self.Pos = Pos
+            self.Mlp = hax.Axis("mlp", 4 * config.hidden_dim)
+            self.attn_pdrop = 0.0
+            self.resid_pdrop = 0.0
+    
+    const_config = ConstantConfig()
+    
+    # Time-Indexed MLP
+    time_indexed_transformer = TimeIndexedTransformer.init(
         gpt2_config, SinusodialDim, TembedDim, key=k1
     )
+    time_indexed_embedder = hnn.Embedding.init(Vocab, Embed, key=k_emb1)
+    time_indexed_lm_head = hnn.Linear.init(Embed, Vocab, key=k_head1, use_bias=False)
     
-    constant_mod_model = ConstantModulationTransformer.init(
-        Vocab, Embed, Heads, HeadSize, config.num_layers, key=k2
-    )
+    # Constant Modulation
+    constant_mod_transformer = ConstantModulationTransformer.init(const_config, key=k2)
+    constant_mod_embedder = hnn.Embedding.init(Vocab, Embed, key=k_emb2)
+    constant_mod_lm_head = hnn.Linear.init(Embed, Vocab, key=k_head2, use_bias=False)
     
-    standard_model = StandardTransformer(
-        Vocab, Embed, Heads, HeadSize, config.num_layers, key=k3
-    )
+    # Standard Transformer
+    standard_transformer = StandardTransformer(Vocab, Embed, Heads, HeadSize, config.num_layers, key=k3)
+    standard_embedder = hnn.Embedding.init(Vocab, Embed, key=k_emb3)
+    standard_lm_head = hnn.Linear.init(Embed, Vocab, key=k_head3, use_bias=False)
     
     # Count parameters
-    def count_params(model):
-        params, _ = eqx.partition(model, eqx.is_array)
-        leaves = jax.tree_util.tree_leaves(params)
-        return sum(leaf.size for leaf in leaves if hasattr(leaf, 'size'))
+    def count_params(*models):
+        total = 0
+        for model in models:
+            params, _ = eqx.partition(model, eqx.is_array)
+            leaves = jax.tree_util.tree_leaves(params)
+            total += sum(leaf.size for leaf in leaves if hasattr(leaf, 'size'))
+        return total
     
-    ti_params = count_params(time_indexed_model)
-    const_params = count_params(constant_mod_model)
-    std_params = count_params(standard_model)
+    ti_params = count_params(time_indexed_transformer, time_indexed_embedder, time_indexed_lm_head)
+    const_params = count_params(constant_mod_transformer, constant_mod_embedder, constant_mod_lm_head)
+    std_params = count_params(standard_transformer, standard_embedder, standard_lm_head)
     
     print(f"\n📊 Parameter Counts:")
     print(f"  Time-Indexed MLP:     {ti_params:>12,} params")
@@ -358,37 +346,92 @@ def run_ablation_experiment(config: ExperimentConfig, seed: int = 42):
     
     # Training loop for each model
     results = {}
+    import optax
     
-    for model_name, model in [
-        ("Time-Indexed MLP", time_indexed_model),
-        ("Constant Modulation", constant_mod_model),
-        ("Standard", standard_model)
+    # Create causal mask once
+    mask_val = hax.arange(Pos) <= hax.arange(Pos).broadcast_axis(Pos.alias("key_position"))
+    
+    for model_name, (transformer, embedder, lm_head) in [
+        ("Time-Indexed MLP", (time_indexed_transformer, time_indexed_embedder, time_indexed_lm_head)),
+        ("Constant Modulation", (constant_mod_transformer, constant_mod_embedder, constant_mod_lm_head)),
+        ("Standard", (standard_transformer, standard_embedder, standard_lm_head))
     ]:
         print(f"\n{'='*70}")
         print(f"Training: {model_name}")
         print(f"{'='*70}")
         
         # Training setup
-        import optax
         optimizer = optax.adam(config.learning_rate)
-        opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
+        
+        # Create combined model tuple for optimization
+        full_model = (transformer, embedder, lm_head)
+        opt_state = optimizer.init(eqx.filter(full_model, eqx.is_array))
+        
+        # Define loss function based on model type
+        if model_name == "Time-Indexed MLP":
+            @eqx.filter_jit
+            def loss_fn(models, x, key):
+                transf, emb, head = models
+                inputs = hax.named(x[:, :-1], (Batch, Pos))
+                targets = x[:, 1:]
+                
+                # Embed
+                embedded = emb(inputs)
+                
+                # Transform
+                hidden = transf(embedded, mask_val, key=key)
+                
+                # LM head
+                logits = head(hidden)
+                
+                # Loss
+                logits_flat = logits.array.reshape(-1, config.vocab_size)
+                targets_flat = targets.reshape(-1)
+                loss = optax.softmax_cross_entropy_with_integer_labels(logits_flat, targets_flat)
+                return jnp.mean(loss)
+        elif model_name == "Constant Modulation":
+            @eqx.filter_jit
+            def loss_fn(models, x, key):
+                transf, emb, head = models
+                inputs = hax.named(x[:, :-1], (Batch, Pos))
+                targets = x[:, 1:]
+                
+                # Embed
+                embedded = emb(inputs)
+                
+                # Transform
+                hidden = transf(embedded, mask_val, key=key)
+                
+                # LM head
+                logits = head(hidden)
+                
+                # Loss
+                logits_flat = logits.array.reshape(-1, config.vocab_size)
+                targets_flat = targets.reshape(-1)
+                loss = optax.softmax_cross_entropy_with_integer_labels(logits_flat, targets_flat)
+                return jnp.mean(loss)
+        else:  # Standard
+            @eqx.filter_jit
+            def loss_fn(models, x, key):
+                transf, emb, head = models
+                inputs = x[:, :-1]
+                targets = x[:, 1:]
+                
+                # Full forward pass
+                logits = transf(inputs, Batch, Pos, key=key)
+                
+                # Loss
+                logits_flat = logits.reshape(-1, config.vocab_size)
+                targets_flat = targets.reshape(-1)
+                loss = optax.softmax_cross_entropy_with_integer_labels(logits_flat, targets_flat)
+                return jnp.mean(loss)
         
         @eqx.filter_jit
-        def loss_fn(model, x, key):
-            inputs = x[:, :-1]
-            targets = x[:, 1:]
-            logits = model(inputs, Batch, Pos, key=key)
-            logits_flat = logits.reshape(-1, config.vocab_size)
-            targets_flat = targets.reshape(-1)
-            loss = optax.softmax_cross_entropy_with_integer_labels(logits_flat, targets_flat)
-            return jnp.mean(loss)
-        
-        @eqx.filter_jit
-        def train_step(model, opt_state, x, key):
-            loss, grads = eqx.filter_value_and_grad(loss_fn)(model, x, key)
-            updates, opt_state = optimizer.update(grads, opt_state, model)
-            model = eqx.apply_updates(model, updates)
-            return model, opt_state, loss
+        def train_step(models, opt_state, x, key):
+            loss, grads = eqx.filter_value_and_grad(loss_fn)(models, x, key)
+            updates, opt_state = optimizer.update(grads, opt_state, models)
+            models = eqx.apply_updates(models, updates)
+            return models, opt_state, loss
         
         # Train
         losses = []
@@ -396,7 +439,7 @@ def run_ablation_experiment(config: ExperimentConfig, seed: int = 42):
         
         for step in range(config.num_steps):
             step_key, key = jrandom.split(key)
-            model, opt_state, loss = train_step(model, opt_state, train_data[step], step_key)
+            full_model, opt_state, loss = train_step(full_model, opt_state, train_data[step], step_key)
             losses.append(float(loss))
             
             if (step + 1) % 100 == 0:
@@ -411,7 +454,7 @@ def run_ablation_experiment(config: ExperimentConfig, seed: int = 42):
         results[model_name] = {
             'losses': losses,
             'final_loss': final_loss,
-            'params': count_params(model),
+            'params': count_params(*full_model),
             'time': elapsed
         }
     

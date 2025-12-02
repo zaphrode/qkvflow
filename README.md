@@ -336,14 +336,19 @@ Key components:
   - Test: Fix modulation to constant value (remove time dependency)
   - If constant performs as well → "Weight Adapter" (not "Neural ODE")
   - If time-indexed wins → theory is validated
-  - **Script started:** `scripts/ablation_constant_modulation.py` (needs debugging)
+  - **Status:** Plan documented in `ABLATION_STUDY_PLAN.md`
+  - **Scripts:** `scripts/ablation_constant_modulation.py` (needs framework compatibility fixes)
+  - **Recommended approach:** Modify existing model to use fixed t=0 for quick test
 
 **Important (for robustness):**
+- [ ] **FLOPs and wall-clock metrics** 
+  - Report compute budget (FLOPs per forward pass)
+  - Wall-clock time to reach specific loss threshold
+  - **Status:** Script created (`scripts/measure_flops.py`), needs config fixes
 - [ ] Test on additional benchmarks (C4, The Pile, etc.)
 - [ ] Scale to larger models (100M+ parameters, subword tokenization)
 - [ ] Hyperparameter optimization for SSM on large datasets
 - [ ] Compare against more Neural ODE variants
-- [ ] Report wall-clock training time to specific loss (FLOPs per token)
 
 **Nice to have:**
 - [ ] Theoretical analysis of regularization properties
