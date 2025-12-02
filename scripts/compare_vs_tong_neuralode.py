@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jrandom
 import equinox as eqx
+import optax
 import haliax as hax
 import haliax.nn as hnn
 import time
@@ -34,11 +35,16 @@ from qkvflow.nn.time_embed import SinusoidalPosEmb
 from qkvflow.nn.dynamic import TemporalLayerNorm, Attention
 from haliax.jax_utils import maybe_rng_split, named_call
 
-# Our time-indexed models
+# Our time-indexed models - use relative imports
 import importlib.util
+from pathlib import Path
+
+# Get the scripts directory dynamically
+scripts_dir = Path(__file__).parent
+
 spec = importlib.util.spec_from_file_location(
     "time_indexed_models", 
-    "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_weights.py"
+    scripts_dir / "test_time_indexed_weights.py"
 )
 time_indexed = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(time_indexed)
@@ -48,7 +54,7 @@ TimeIndexedTransformer = time_indexed.TimeIndexedTransformer
 
 spec_ssm = importlib.util.spec_from_file_location(
     "time_indexed_ssm", 
-    "/home/nahid/Documents/qkvflow/scripts/test_time_indexed_ssm.py"
+    scripts_dir / "test_time_indexed_ssm.py"
 )
 time_indexed_ssm = importlib.util.module_from_spec(spec_ssm)
 spec_ssm.loader.exec_module(time_indexed_ssm)
@@ -193,7 +199,7 @@ def create_model(model_type: str, config: ComparisonConfig, key):
 
 
 def compute_loss(transformer, embedder, lm_head, input_ids, targets, Vocab, attn_mask, key, model_type):
-    """Compute loss"""
+    """Compute loss - uses sparse cross-entropy (no one-hot materialization)"""
     x = embedder(input_ids)
     
     # Different call signatures for different models
@@ -204,11 +210,13 @@ def compute_loss(transformer, embedder, lm_head, input_ids, targets, Vocab, attn
     
     logits = lm_head(x)
     
-    targets_onehot = jax.nn.one_hot(targets.array, Vocab.size)
-    targets_onehot = hax.named(targets_onehot, tuple(targets.axes) + (Vocab,))
-    loss = hax.nn.cross_entropy_loss(logits, Vocab, targets_onehot, reduction=hax.mean)
+    # Sparse cross-entropy - avoids materializing (Batch × Seq × Vocab) one-hot tensor
+    # Critical for large vocab sizes (50k+) to prevent OOM
+    logits_flat = logits.array.reshape(-1, Vocab.size)
+    targets_flat = targets.array.reshape(-1)
+    loss = optax.softmax_cross_entropy_with_integer_labels(logits_flat, targets_flat)
     
-    return loss.scalar()
+    return jnp.mean(loss)
 
 
 def train_model(model_type: str, config: ComparisonConfig, 
@@ -233,7 +241,6 @@ def train_model(model_type: str, config: ComparisonConfig,
     log_message(f"Parameters: {total_params:,}")
     
     # Optimizer
-    import optax
     opt = optax.adam(learning_rate=config.learning_rate)
     models = (transformer, embedder, lm_head)
     opt_state = opt.init(eqx.filter(models, eqx.is_array))

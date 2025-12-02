@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jrandom
 import equinox as eqx
+import optax
 import haliax as hax
 import haliax.nn as hnn
 import matplotlib.pyplot as plt
@@ -339,15 +340,12 @@ def train_step(model, embeddings, lm_head, opt_state, optimizer,
         # LM head
         logits = lm_head(x)
         
-        # Loss
-        targets_onehot = jax.nn.one_hot(targets.array, Vocab.size)
-        targets_onehot = hax.named(targets_onehot, tuple(targets.axes) + (Vocab,))
+        # Loss - sparse cross entropy (no one-hot materialization)
+        logits_flat = logits.array.reshape(-1, Vocab.size)
+        targets_flat = targets.array.reshape(-1)
+        loss = optax.softmax_cross_entropy_with_integer_labels(logits_flat, targets_flat)
         
-        loss = hax.nn.cross_entropy_loss(
-            logits, Vocab, targets_onehot, reduction=hax.mean
-        )
-        
-        return loss.scalar()
+        return jnp.mean(loss)
     
     loss, grads = eqx.filter_value_and_grad(loss_fn)(model, embeddings, lm_head)
     
@@ -514,7 +512,6 @@ def run_experiment(use_time_indexed: bool, config: ExperimentConfig, seed: int =
     print(f"Model parameters: {count_parameters(model):,}")
     
     # Optimizer
-    import optax
     optimizer = optax.adam(config.learning_rate)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
     
