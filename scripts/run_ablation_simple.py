@@ -43,9 +43,28 @@ def run_ablation_experiment(seed: int = 42):
     
     print("\n🔬 Running comparison experiment...")
     print("   (To add constant variant: modify TimeIndexedTransformer to use fixed t=0)")
+    print("")
     
-    # Run standard comparison
-    results = compare_main(seed=seed)
+    # Set random seed for JAX
+    import jax
+    jax.random.PRNGKey(seed)
+    
+    # Run standard comparison (doesn't take seed parameter, doesn't return results)
+    compare_main()
+    
+    # Load results from pickle file that compare_main() creates
+    results_file = "tong_comparison_results.pkl"
+    print(f"\n📥 Loading results from {results_file}...")
+    
+    try:
+        with open(results_file, 'rb') as f:
+            results_list = pickle.load(f)
+    except FileNotFoundError:
+        print(f"❌ Results file not found: {results_file}")
+        return None
+    
+    # Convert list to dictionary for easier access
+    results = {r['model_type']: r for r in results_list}
     
     print("\n" + "="*80)
     print("ABLATION ANALYSIS")
@@ -53,14 +72,17 @@ def run_ablation_experiment(seed: int = 42):
     
     if results:
         print("\n📊 Results Summary:")
-        for model_name, result in results.items():
-            if 'final_loss' in result:
-                print(f"  {model_name:25s}: Loss = {result['final_loss']:.4f}")
+        for model_type in ['standard', 'tong_neuralode', 'time_indexed_mlp', 'time_indexed_ssm']:
+            if model_type in results:
+                result = results[model_type]
+                name = model_type.replace('_', ' ').title()
+                if 'best_valid_loss' in result:
+                    print(f"  {name:25s}: Loss = {result['best_valid_loss']:.4f}")
         
         # Critical comparison
         if 'time_indexed_mlp' in results and 'standard' in results:
-            ti_loss = results['time_indexed_mlp']['final_loss']
-            std_loss = results['standard']['final_loss']
+            ti_loss = results['time_indexed_mlp']['best_valid_loss']
+            std_loss = results['standard']['best_valid_loss']
             improvement = ((std_loss - ti_loss) / std_loss) * 100
             
             print(f"\n🔍 Time-Indexed vs Standard:")
@@ -68,8 +90,10 @@ def run_ablation_experiment(seed: int = 42):
             print(f"   Interpretation:")
             if improvement > 5:
                 print("   ✅ Time-Indexed provides meaningful benefit")
+                print("   ✅ Time-dependency (Neural ODE) appears to help")
             elif improvement > 0:
                 print("   ⚠️  Modest improvement, may be within noise")
+                print("   ⚠️  Need constant t=0 variant to confirm source of gain")
             else:
                 print("   ❌ No improvement over baseline")
         
