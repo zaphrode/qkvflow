@@ -329,13 +329,26 @@ Key components:
 6. **Limited baselines:** Only compared against one Neural ODE variant
 
 ### Future Work Needed
+
+**Critical (for publication):**
+- [ ] **Ablation study:** Constant modulation baseline (scientific control)
+  - Question: Is the gain from time-indexing \(t\)? Or just from MLP adapters?
+  - Test: Fix modulation to constant value (remove time dependency)
+  - If constant performs as well → "Weight Adapter" (not "Neural ODE")
+  - If time-indexed wins → theory is validated
+  - **Script started:** `scripts/ablation_constant_modulation.py` (needs debugging)
+
+**Important (for robustness):**
 - [ ] Test on additional benchmarks (C4, The Pile, etc.)
-- [ ] Scale to larger models (100M+ parameters)
+- [ ] Scale to larger models (100M+ parameters, subword tokenization)
 - [ ] Hyperparameter optimization for SSM on large datasets
 - [ ] Compare against more Neural ODE variants
+- [ ] Report wall-clock training time to specific loss (FLOPs per token)
+
+**Nice to have:**
 - [ ] Theoretical analysis of regularization properties
-- [ ] Ablation studies on architectural choices
 - [ ] Speed optimization for SSM variant
+- [ ] Visualization of learned time modulation patterns
 
 ---
 
