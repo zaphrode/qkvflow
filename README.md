@@ -48,7 +48,7 @@ Constrained parameter sharing might provide **implicit regularization** that imp
 
 ---
 
-## 📊 Preliminary Results
+## 📊 Preliminary Results (Small-Scale)
 
 Results on **WikiText-2 validation set** (5 seeds, 95% confidence intervals):
 
@@ -59,13 +59,25 @@ Results on **WikiText-2 validation set** (5 seeds, 95% confidence intervals):
 | Tong's Neural ODE | 2.336 ± 0.018 | 51.5M | 15.3 ms/step |
 | Standard Transformer | 2.367 ± 0.022 | 308.5M | 55.3 ms/step |
 
-**Notes:**
-- Improvements are statistically significant (p < 0.05) on this specific setup
-- Time-Indexed SSM is actually *slower* per step than standard transformer (64.3 vs 55.3 ms) despite fewer parameters
+### Key Trade-offs (Critical Understanding)
 
-## Extended Benchmark: WikiText-103
+**Time-Indexed MLP:**
+- ✅ **Best parameter efficiency:** 430× compression
+- ✅ **Best training speed:** 7.2× faster per step
+- ⚠️ Moderate loss (2.231)
 
-We additionally evaluate on the larger WikiText-103 corpus (50× larger than WikiText-2) using the same depth and width configuration.
+**Time-Indexed SSM:**
+- ✅ **Best validation loss:** 9.3% improvement over baseline
+- ✅ **Good parameter efficiency:** 63× compression
+- ⚠️ **Slower per step than baseline:** 64.3ms vs 55.3ms (parameter count ≠ speed)
+
+> **Important:** "Parameter efficiency" (memory) ≠ "Inference latency" (speed). The SSM adds recurrent computation that isn't captured by parameter count alone. Choose MLP for speed-critical applications, SSM for best accuracy with memory constraints.
+
+**Statistical Note:** Improvements are statistically significant (p < 0.05) on this specific small-scale setup.
+
+## Extended Benchmark: WikiText-103 (Still Small-Scale)
+
+We additionally evaluate on the larger WikiText-103 corpus (50× larger than WikiText-2, ~14.7M characters subsampled) using the same depth and width configuration.
 
 | Model | Valid PPL | Params | Compression vs Standard |
 |-------|----------:|-------:|------------------------:|
@@ -74,7 +86,10 @@ We additionally evaluate on the larger WikiText-103 corpus (50× larger than Wik
 | Standard Transformer | 12.21 | 308.5M | 1.0× |
 | Time-Indexed SSM | 24.57 | 4.9M | 62.9× |
 
-On WikiText-103, time-indexed parameter sharing (MLP variant) maintains better perplexity compared to Tong et al. and the standard transformer, while achieving 430× parameter compression. This indicates that the benefits extend beyond small-scale benchmarks. The SSM variant requires further hyperparameter optimization for larger datasets.
+**Observations:**
+- Time-Indexed MLP maintains strong parameter efficiency and performance at modest scale increase
+- SSM performance degrades (requires hyperparameter tuning for this dataset size)
+- **Caveat:** These are still small models (<10M params) on character-level tasks. Scaling to LLaMA-size (100M+ params) or subword tokenization is future work.
 
 See [WIKITEXT103_RESULTS.md](WIKITEXT103_RESULTS.md) for detailed experimental setup and analysis.
 
@@ -90,18 +105,19 @@ See [WIKITEXT103_RESULTS.md](WIKITEXT103_RESULTS.md) for detailed experimental s
 
 ## 🏗️ Architecture Details
 
-### Core Idea: Constrained Parameter Sharing
+### Core Idea: Time-Dependent FiLM for Weights (Not Activations)
 
 **Tong's approach (unrestricted generation):**
 ```python
 # Generate all weights from scratch at each layer
 W_Q(t), W_K(t), W_V(t) = HyperNetwork(sinusoidal_embed(t))
-# ~51M parameters
+# ~51M parameters, hypernetworks are notoriously unstable
 ```
 
-**Our approach (constrained sharing):**
+**Our approach (constrained sharing with time-dependent modulation):**
 ```python
 # Share base weights, modulate with lightweight network
+# This is effectively "FiLM" (Feature-wise Linear Modulation) applied to weights
 scale_Q(t), scale_K(t), scale_V(t) = SmallMLP(sinusoidal_embed(t))
 W_Q_eff(t) = W_Q_base ⊙ sigmoid(scale_Q(t))
 W_K_eff(t) = W_K_base ⊙ sigmoid(scale_K(t))
@@ -109,15 +125,21 @@ W_V_eff(t) = W_V_base ⊙ sigmoid(scale_V(t))
 # ~0.7-4.9M parameters (depending on variant)
 ```
 
-**Why this might help:**
-- Constrains the weight space to a low-dimensional manifold
-- Provides implicit regularization through sharing
-- Reduces risk of overfitting on small datasets
+**Mathematical Contribution:**
+- **Tong:** \( W(t) \) is fully generated (expensive, unstable)
+- **Ours:** \( W_{eff}(t) = W_{base} \odot \sigma(MLP(t)) \) (grounded optimization, efficient)
 
-**Trade-offs:**
+**Why this might help:**
+- Keeps optimization landscape grounded in \( W_{base} \) (easier to train)
+- Allows weight "trajectory" to drift over time via modulation
+- Implicit regularization through constrained weight space
+- Logical middle ground between static weights and full generation
+
+**Known Limitations:**
 - Less expressive than full weight generation
-- May not scale to very deep networks
-- Needs validation on larger datasets/models
+- May not scale to very deep networks (untested)
+- Adds computation (MLP modulation) not fully captured by parameter count
+- Only tested on small-scale character-level language modeling
 
 ---
 
