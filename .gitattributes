@@ -1,0 +1,10 @@
+# Treat Jupyter notebooks as documentation/vendored
+# This fixes GitHub language statistics to show Python code instead of notebooks
+*.ipynb linguist-documentation
+*.ipynb linguist-vendored
+
+# Mark generated files
+publication_figures/*.png linguist-generated
+statistical_validation_results/*.pkl linguist-generated
+wikitext103_validation/*.pkl linguist-generated
+
