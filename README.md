@@ -6,7 +6,7 @@
 >
 > **This repository adds:**
 > - Time-indexed parameter-sharing variants (MLP and SSM)
-> - Small-scale WikiText-2 comparison experiments
+> - WikiText-2 and WikiText-103 comparison experiments
 > - Statistical validation tools and analysis scripts
 > - Exploratory follow-up work for my own research
 >
@@ -28,22 +28,23 @@ instead of generating all weights independently from scratch at each layer?
 
 ### Hypothesis
 
-Constrained parameter sharing might provide **implicit regularization** that improves generalization on small-scale tasks.
+Constrained parameter sharing might provide **implicit regularization** that improves generalization, validated on both small-scale (WikiText-2) and larger-scale (WikiText-103) language modeling.
 
 ---
 
 ## 🔬 Experimental Setup
 
-**Dataset:** WikiText-2 (small-scale language modeling)  
+**Datasets:**
+- WikiText-2: 2M tokens (primary experiments with statistical validation)
+- WikiText-103: 103M tokens (extended validation, 50× larger)
+
 **Models compared:**
 - Standard Transformer (baseline)
 - Tong's Neural ODE Transformer (ICLR 2025 baseline)
 - **Time-Indexed MLP** (our variant, extreme compression)
-- **Time-Indexed SSM** (our variant, best performance)
+- **Time-Indexed SSM** (our variant)
 
-**Validation:** 5 random seeds with statistical significance testing (WikiText-2)
-
-**Datasets:** WikiText-2 (2M tokens) and WikiText-103 (103M tokens, 50× larger)
+**Validation:** 5 random seeds with statistical significance testing on WikiText-2
 
 ---
 
@@ -62,24 +63,20 @@ Results on **WikiText-2 validation set** (5 seeds, 95% confidence intervals):
 - Improvements are statistically significant (p < 0.05) on this specific setup
 - Time-Indexed SSM is actually *slower* per step than standard transformer (64.3 vs 55.3 ms) despite fewer parameters
 
-### WikiText-103 Validation Results
+## Extended Benchmark: WikiText-103
 
-Results on **WikiText-103** (50× larger dataset, ~14.7M characters):
+We additionally evaluate on the larger WikiText-103 corpus (50× larger than WikiText-2) using the same depth and width configuration.
 
-| Model | Valid Loss | Parameters | Training Speed |
-|-------|------------|------------|----------------|
-| **Time-Indexed MLP** | **2.373** | 0.7M | 7.4 ms/step |
-| Tong's Neural ODE | 2.473 | 51.5M | 15.0 ms/step |
-| Standard Transformer | 2.502 | 308.5M | 53.9 ms/step |
-| Time-Indexed SSM | 3.202 | 4.9M | 59.8 ms/step |
+| Model | Valid PPL | Params | Compression vs Standard |
+|-------|----------:|-------:|------------------------:|
+| **Time-Indexed MLP** | **10.73** | 0.7M | 430.9× |
+| Tong's Neural ODE | 11.86 | 51.5M | 6.0× |
+| Standard Transformer | 12.21 | 308.5M | 1.0× |
+| Time-Indexed SSM | 24.57 | 4.9M | 62.9× |
 
-**Key findings:**
-- Time-Indexed MLP achieves best performance on larger dataset
-- 5.1% improvement over standard transformer with 430× fewer parameters
-- Time-Indexed SSM performance degrades on larger dataset (requires hyperparameter tuning)
-- Results confirm parameter sharing approach generalizes beyond small datasets
+On WikiText-103, time-indexed parameter sharing (MLP variant) maintains better perplexity compared to Tong et al. and the standard transformer, while achieving 430× parameter compression. This indicates that the benefits extend beyond small-scale benchmarks. The SSM variant requires further hyperparameter optimization for larger datasets.
 
-See [WIKITEXT103_RESULTS.md](WIKITEXT103_RESULTS.md) for detailed analysis.
+See [WIKITEXT103_RESULTS.md](WIKITEXT103_RESULTS.md) for detailed experimental setup and analysis.
 
 ### Performance Visualization
 

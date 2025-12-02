@@ -1,6 +1,9 @@
 # WikiText-2 Benchmark Results
 ## Time-Indexed Parameter Sharing on Real Language Modeling Data
 
+> **📌 Update (Dec 2, 2025):** Extended validation on WikiText-103 (50× larger) is now available.  
+> See [WIKITEXT103_RESULTS.md](WIKITEXT103_RESULTS.md) for larger-scale validation.
+
 **Date:** November 14, 2025  
 **Hardware:** NVIDIA A100-SXM4-40GB  
 **Dataset:** WikiText-2 (10.8M train chars, 1.1M test chars)  
