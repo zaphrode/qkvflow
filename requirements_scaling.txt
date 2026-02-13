@@ -1,0 +1,44 @@
+# Requirements for GPT-2 Small Scale Training
+
+# Core deep learning
+jax[cuda12]==0.4.30
+jaxlib==0.4.30
+equinox==0.11.4
+haliax==1.3.1
+optax==0.2.2
+
+# Transformers and tokenization
+transformers==4.40.0
+tokenizers==0.19.1
+datasets==2.19.0
+
+# Training infrastructure
+wandb==0.17.0  # Experiment tracking
+tqdm==4.66.4  # Progress bars
+pyyaml==6.0.1  # Config files
+omegaconf==2.3.0  # Advanced config management
+
+# Evaluation
+lm-eval==0.4.2  # LM evaluation harness
+
+# Utilities
+numpy==1.26.4
+matplotlib==3.8.4
+seaborn==0.13.2
+pandas==2.2.2
+
+# Cloud and checkpointing
+google-cloud-storage==2.16.0  # For GCP storage
+boto3==1.34.110  # For AWS storage (optional)
+
+# Development
+ipython==8.24.0
+jupyter==1.0.0
+
+# Note: Install JAX with CUDA support separately:
+# pip install --upgrade "jax[cuda12]==0.4.30" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+
+
+
+

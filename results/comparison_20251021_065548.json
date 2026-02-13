@@ -1,0 +1,17 @@
+{
+  "ssm": {
+    "params": 141976128,
+    "final_loss": 13701207040.0,
+    "avg_step_time": 0.3101017475128174
+  },
+  "mlp": {
+    "params": 334060992,
+    "final_loss": 13701210112.0,
+    "avg_step_time": 0.12036818265914917
+  },
+  "config": {
+    "hidden_dim": 256,
+    "num_layers": 6,
+    "ssm_state_size": 64
+  }
+}

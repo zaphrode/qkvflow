@@ -1,0 +1,62 @@
+[
+  {
+    "model1": "standard",
+    "model2": "tong_neuralode",
+    "t_statistic": 2.1712930523922,
+    "p_value": 0.06169407061592977,
+    "significant_at_0.05": false,
+    "significant_at_0.01": false,
+    "cohens_d": 1.535336041289762,
+    "effect_size": "large"
+  },
+  {
+    "model1": "standard",
+    "model2": "time_indexed_mlp",
+    "t_statistic": 8.247299100651164,
+    "p_value": 3.505157196022145e-05,
+    "significant_at_0.05": true,
+    "significant_at_0.01": true,
+    "cohens_d": 5.831721120544153,
+    "effect_size": "large"
+  },
+  {
+    "model1": "standard",
+    "model2": "time_indexed_ssm",
+    "t_statistic": 3.491619741369245,
+    "p_value": 0.008178964225889306,
+    "significant_at_0.05": true,
+    "significant_at_0.01": true,
+    "cohens_d": 2.4689479964470125,
+    "effect_size": "large"
+  },
+  {
+    "model1": "tong_neuralode",
+    "model2": "time_indexed_mlp",
+    "t_statistic": 6.931114619422966,
+    "p_value": 0.00012068632355199382,
+    "significant_at_0.05": true,
+    "significant_at_0.01": true,
+    "cohens_d": 4.901038148575197,
+    "effect_size": "large"
+  },
+  {
+    "model1": "tong_neuralode",
+    "model2": "time_indexed_ssm",
+    "t_statistic": 3.017918361320848,
+    "p_value": 0.016612036971326172,
+    "significant_at_0.05": true,
+    "significant_at_0.01": false,
+    "cohens_d": 2.133990538357365,
+    "effect_size": "large"
+  },
+  {
+    "model1": "time_indexed_mlp",
+    "model2": "time_indexed_ssm",
+    "t_statistic": 1.3234004746362005,
+    "p_value": 0.22227126471422232,
+    "significant_at_0.05": false,
+    "significant_at_0.01": false,
+    "cohens_d": 0.935785449840753,
+    "effect_size": "large"
+  }
+]
