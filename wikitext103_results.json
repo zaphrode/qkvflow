@@ -1,0 +1,8 @@
+{
+  "model": "time_indexed_transformer",
+  "checkpoint": "/data1/fypnahid/qkvflow/checkpoints_publication/checkpoint_005000.pkl",
+  "params": 49632768,
+  "wikitext103_ppl": 1.0184562777136152,
+  "tokens_evaluated": 1138688,
+  "seq_len": 512
+}

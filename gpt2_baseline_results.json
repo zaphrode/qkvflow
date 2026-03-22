@@ -1,0 +1,8 @@
+{
+  "model": "gpt2-small-pretrained",
+  "params": 124439808,
+  "val_loss": 3.571779417991638,
+  "val_ppl": 35.57984827844899,
+  "eval_sequences": 200,
+  "seq_len": 512
+}
